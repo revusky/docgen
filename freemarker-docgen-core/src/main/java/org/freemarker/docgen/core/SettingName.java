@@ -47,7 +47,8 @@ final class SettingName {
     }
 
     SettingName subKey(Object key) {
-        return new SettingName(null, this, key.toString());
+//        return new SettingName(null, this, key.toString());
+        return new SettingName(null, this, key);
     }
 
     SettingName subKey(Object... keys) {

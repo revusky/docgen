@@ -43,9 +43,10 @@ public final class Main {
     public static void main(String[] args)
             throws DocgenException, IOException, SAXException {
         try {
+            System.out.println(System.getProperty("java.class.path"));
             if (args.length < 2) {
                 throw new CommandLineExitException(-1,
-                        "Usage: java -jar docgen.jar <srcDir> <dstDir> [option1=value1 ...]");
+                        "Usage: java -jar  docgen.jar <srcDir> <dstDir> [option1=value1 ...]");
             }
 
             Transform tr = new Transform();

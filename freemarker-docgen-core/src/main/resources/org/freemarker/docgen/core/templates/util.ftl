@@ -26,9 +26,9 @@
   <#if preferTitleAbbrev>
     <#local result = node.info.titleabbrev>
   </#if>
-  <#if !result?hasContent><#local result = node.title></#if>
-  <#if !result?hasContent><#local result = node.info.title></#if>
-  <#if !result?hasContent>
+  <#if !result??><#local result = node.title></#if>
+  <#if !result??><#local result = node.info.title></#if>
+  <#if !result??>
      <#return ''>
   </#if>
   <#return result>
@@ -36,9 +36,9 @@
 
 <#function getRequiredTitleElement node preferTitleAbbrev=false>
   <#local result = getOptionalTitleElement(node, preferTitleAbbrev)>
-  <#if !result?hasContent>
+  <#if !result??>
     <#stop "Required \"title\" child element missing for element \""
-        + node?nodeName + "\".">
+        + node?node_name + "\".">
   </#if>
   <#return result>
 </#function>
@@ -49,8 +49,8 @@
 
 <#function getOptionalSubtitleElement node>
   <#local result = node.subtitle>
-  <#if !result?hasContent><#local result = node.info.subtitle></#if>
-  <#if !result?hasContent>
+  <#if !result??><#local result = node.info.subtitle></#if>
+  <#if !result??>
     <#return ''>
   </#if>
   <#return result>
@@ -61,27 +61,27 @@
 </#function>
 
 <#function titleToString titleNode>
-  <#if !titleNode?hasContent>
+  <#if !titleNode??>
     <#-- Used for optional title -->
     <#return ''>
   </#if>
-  <#if !titleNode?isNode>
+  <#if !titleNode?is_node>
     <#-- Just a string... -->
     <#return titleNode>
   </#if>
 
   <#local res = "">
   <#list titleNode?children as child>
-    <#if child?nodeType == "text">
-      <#local res += child>
-    <#elseIf child?nodeType == "element">
-      <#local name = child?nodeName>
+    <#if child?node_type == "text">
+      <#local res = res+child>
+    <#elseif child?node_type == "element">
+      <#local name = child?node_name>
       <#if ["literal", "classname", "methodname", "package", "replaceable", "emphasis", "phrase",
-            "olink", "link"]?seqContains(name)>
-        <#local res += titleToString(child)>
-      <#elseIf name == "quote">
+            "olink", "link"]?seq_contains(name)>
+        <#local res = res + titleToString(child)>
+      <#elseif name == "quote">
         <#local res = "\x201C" + titleToString(child) + "\x201D">
-      <#elseIf name != "subtitle">
+      <#elseif name != "subtitle">
         <#stop 'The "${name}" in titles is not supported by Docgen.'>
       </#if>
     </#if>
@@ -93,22 +93,22 @@
 <#-- "docStructElem" is a part, chapter, section, etc., NOT a title element -->
 <#function getTitlePrefix docStructElem, extraSpacing=false, longForm=false>
   <#local prefix = docStructElem.@docgen_title_prefix[0]!>
-  <#if !prefix?hasContent>
+  <#if !prefix??>
     <#return "">
   </#if>
 
-  <#local type = docStructElem?nodeName>
+  <#local type = docStructElem?node_name>
 
   <#local spacer = ": ">
 
 
   <#if type == "chapter">
     <#return longForm?string("Chapter ", "") + prefix + spacer>
-  <#elseIf type == "appendix">
+  <#elseif type == "appendix">
     <#return longForm?string("Appendix ", "") + prefix + spacer>
-  <#elseIf type == "part">
+  <#elseif type == "part">
     <#return longForm?string("Part ", "") + prefix + spacer>
-  <#elseIf type == "article">
+  <#elseif type == "article">
     <#return longForm?string("Article ", "") + prefix + spacer>
   <#else>
     <#return prefix + spacer>

@@ -30,10 +30,17 @@
 
     <dependencies>
         <dependency>
+            <groupId>cc.freemarker</groupId>
+            <artifactId>freemarker3</artifactId>
+            <version>3.0 preview</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/../libs/freemarker.jar</systemPath>
+        </dependency>
+        <!--dependency>
             <groupId>org.freemarker</groupId>
             <artifactId>freemarker</artifactId>
             <version>2.3.32</version>
-        </dependency>
+        </dependency-->
         <dependency>
             <groupId>com.thaiopensource</groupId>
             <artifactId>jing</artifactId>

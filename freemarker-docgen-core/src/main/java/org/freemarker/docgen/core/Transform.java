@@ -514,8 +514,7 @@ public final class Transform {
      * @throws SAXException If the XML is not well-formed and valid, or the
      *      SAX XML parsing has other problems.
      */
-    public void execute()
-            throws DocgenException, IOException, SAXException {
+    public void execute() throws DocgenException, IOException, SAXException {
         if (executed) {
             throw new DocgenException(
                     "This transformation was alrady executed; "
@@ -830,30 +829,34 @@ public final class Transform {
             } // for each cfg settings
 
             if (deployUrl == null) {
-                throw new DocgenException(
-                        "The \"" + SETTING_DEPLOY_URL + "\" setting wasn't specified");
+                //throw new DocgenException( "The \"" + SETTING_DEPLOY_URL + "\" setting wasn't specified");
+                deployUrl="https://freemarker.cc/";
             }
             if (offline == null) {
-                throw new DocgenException(
-                        "The \"" + SETTING_OFFLINE
-                        + "\" setting wasn't specified; it must be set to true or false");
+                offline = true;
+                //throw new DocgenException(
+                //        "The \"" + SETTING_OFFLINE
+                //        + "\" setting wasn't specified; it must be set to true or false");
             }
             if (logo == null) {
-                throw new DocgenException(
-                        "The \"" + SETTING_LOGO
-                        + "\" setting wasn't specified; it must be set currently, as the layout reserves space for it.");
+                //throw new DocgenException(
+                //        "The \"" + SETTING_LOGO
+                //        + "\" setting wasn't specified; it must be set currently, as the layout reserves space for it.");
             }
             if (copyrightHolder == null) {
-                throw new DocgenException(
-                        "The \"" + SETTING_COPYRIGHT_HOLDER + "\" setting wasn't specified.");
+                copyrightHolder = "God Almighty";
+                //throw new DocgenException(
+                  //      "The \"" + SETTING_COPYRIGHT_HOLDER + "\" setting wasn't specified.");
             }
             if (copyrightHolderSite == null) {
-                throw new DocgenException(
-                        "The \"" + SETTING_COPYRIGHT_HOLDER_SITE + "\" setting wasn't specified.");
+                copyrightHolder = "God Almighty Website";
+                //throw new DocgenException(
+                        //"The \"" + SETTING_COPYRIGHT_HOLDER_SITE + "\" setting wasn't specified.");
             }
             if (copyrightStartYear == null) {
-                throw new DocgenException(
-                        "The \"" + SETTING_COPYRIGHT_START_YEAR + "\" setting wasn't specified.");
+                copyrightStartYear = 2023;
+//                throw new DocgenException(
+//                        "The \"" + SETTING_COPYRIGHT_START_YEAR + "\" setting wasn't specified.");
             }
         }
 
@@ -895,6 +898,7 @@ public final class Transform {
         //logger.info("Using FreeMarker " + Configuration.getVersion());
         //fmConfig = new Configuration(Configuration.VERSION_2_3_25);
         fmConfig = new Configuration();
+        fmConfig.setLegacySyntax(true);
 
         TemplateLoader templateLoader = new ClassTemplateLoader(
                 Transform.class, "templates");
