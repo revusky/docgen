@@ -243,10 +243,10 @@ final class SettingUtils {
         for (T key : mapKeySet) {
             if (!requiredKeys.contains(key) && !optionalKeys.contains(key)) {
                 throw newCfgFileException(settingName,
-                        "Unsupported key in the map value: " + StringUtil.jQuote(key) + ". Valid keys are: "
+                        "Unsupported key in the map value: " + StringUtil.jQuote(key.toString()) + ". Valid keys are: "
                                 + Sets.union(requiredKeys, optionalKeys).stream()
                                 .sorted()
-                                .map(it -> StringUtil.jQuote(it))
+                                .map(it -> StringUtil.jQuote(it.toString()))
                                 .collect(Collectors.joining(", ")));
             }
         }

@@ -24,12 +24,10 @@ import java.io.Writer;
 import java.util.Map;
 
 import freemarker.core.Environment;
-import freemarker.template.TemplateDirectiveBody;
-import freemarker.template.TemplateDirectiveModel;
+import freemarker.core.variables.UserDirective;
+import freemarker.core.variables.UserDirectiveBody;
+import freemarker.core.variables.EvaluationException;
 import freemarker.template.TemplateException;
-import freemarker.template.TemplateModel;
-import freemarker.template.TemplateModelException;
-import freemarker.template.TemplateTransformModel;
 
 /**
  * Similar to <code>${capturedContent?chopLinebreak}</code>, but it's "streaming", which is important if we want the

@@ -16,22 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.freemarker.docgen.core;
 
-import freemarker.core.Environment;
-import freemarker.template.TemplateException;
-
 /**
- * Exception thrown by docgen tag-s that are inside the XML text. As such, it's treated as the mistake of the document
- * author (as opposed to an internal error).
+ * Stores HTML markup to be printed; used with {@link HTMLOutputFormat}.
+ *
+ * <p>This class was final before 2.3.29.
+ *
+ * @since 2.3.24
  */
-public class DocgenTagException extends TemplateException {
-    public DocgenTagException(String description, Environment env) {
-        super(description, env);
+public class TemplateHTMLOutputModel extends CommonTemplateMarkupOutputModel<TemplateHTMLOutputModel> {
+    
+    /**
+     * See {@link CommonTemplateMarkupOutputModel#CommonTemplateMarkupOutputModel(String, String)}.
+     * @since 2.3.29
+     */
+    protected TemplateHTMLOutputModel(String plainTextContent, String markupContent) {
+        super(plainTextContent, markupContent);
     }
 
-    public DocgenTagException(String description, Exception cause, Environment env) {
-        super(description, cause, env);
+    public HTMLOutputFormat getOutputFormat() {
+        return HTMLOutputFormat.INSTANCE;
     }
+
 }

@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-import freemarker.ext.beans.NumberModel;
 import freemarker.template.utility.StringUtil;
 
 final class SettingName {
@@ -48,7 +47,7 @@ final class SettingName {
     }
 
     SettingName subKey(Object key) {
-        return new SettingName(null, this, key);
+        return new SettingName(null, this, key.toString());
     }
 
     SettingName subKey(Object... keys) {
@@ -89,7 +88,7 @@ final class SettingName {
                 if (sb.length() == 0) {
                     sb.append("#ROOT");
                 }
-                sb.append('[').append(StringUtil.jQuote(key)).append(']');
+                sb.append('[').append(StringUtil.jQuote(key.toString())).append(']');
             }
         } else if (key instanceof Number) {
             sb.append('[').append(key).append(']');

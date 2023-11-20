@@ -65,20 +65,13 @@ import freemarker.cache.ClassTemplateLoader;
 import freemarker.cache.FileTemplateLoader;
 import freemarker.cache.MultiTemplateLoader;
 import freemarker.cache.TemplateLoader;
-import freemarker.ext.dom.NodeModel;
+import freemarker.xml.WrappedDomNode;
 import freemarker.log.Logger;
 import freemarker.template.Configuration;
-import freemarker.template.SimpleHash;
-import freemarker.template.SimpleScalar;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
-import freemarker.template.TemplateMethodModelEx;
-import freemarker.template.TemplateModel;
-import freemarker.template.TemplateModelException;
-import freemarker.template.TemplateScalarModel;
-import freemarker.template.utility.ClassUtil;
-import freemarker.template.utility.DateUtil;
-import freemarker.template.utility.DateUtil.DateParseException;
+import freemarker.core.variables.WrappedMethod;
+import freemarker.core.variables.EvaluationException;
 import freemarker.template.utility.StringUtil;
 
 public final class Transform {
@@ -475,8 +468,8 @@ public final class Transform {
     private boolean executed;
 
     private Map<String, String> olinks = new HashMap<>();
-    private Map<String, List<NodeModel>> primaryIndexTermLookup;
-    private Map<String, SortedMap<String, List<NodeModel>>> secondaryIndexTermLookup;
+    private Map<String, List<WrappedDomNode>> primaryIndexTermLookup;
+    private Map<String, SortedMap<String, List<WrappedDomNode>>> secondaryIndexTermLookup;
     private Map<String, Element> elementsById;
     private List<TOCNode> tocNodes;
     private List<String> indexEntries;
@@ -899,8 +892,9 @@ public final class Transform {
             throw new BugException(e);
         }
 
-        logger.info("Using FreeMarker " + Configuration.getVersion());
-        fmConfig = new Configuration(Configuration.VERSION_2_3_25);
+        //logger.info("Using FreeMarker " + Configuration.getVersion());
+        //fmConfig = new Configuration(Configuration.VERSION_2_3_25);
+        fmConfig = new Configuration();
 
         TemplateLoader templateLoader = new ClassTemplateLoader(
                 Transform.class, "templates");
@@ -1059,27 +1053,8 @@ public final class Transform {
             fmConfig.setSharedVariable(
                     "chopLinebreak",
                     ChopLinebreakDirective.INSTANCE);
-
-            // Calculated data:
-            {
-                Date generationTime;
-                String generationTimeStr = System.getProperty(SYSPROP_GENERATION_TIME);
-                if (generationTimeStr == null) {
-                    generationTime = new Date();
-                } else {
-                    try {
-                        generationTime = DateUtil.parseISO8601DateTime(generationTimeStr, DateUtil.UTC,
-                                new DateUtil.TrivialCalendarFieldsToDateConverter());
-                    } catch (DateParseException e) {
-                        throw new DocgenException(
-                                "Malformed \"" + SYSPROP_GENERATION_TIME
-                                + "\" system property value: " + generationTimeStr, e);
-                    }
-                }
-                fmConfig.setSharedVariable(VAR_TRANSFORM_START_TIME, generationTime);
-            }
-            fmConfig.setSharedVariable(
-                    VAR_INDEX_ENTRIES, indexEntries);
+            fmConfig.setSharedVariable(VAR_TRANSFORM_START_TIME, new Date());
+            fmConfig.setSharedVariable( VAR_INDEX_ENTRIES, indexEntries);
             int tofCntLv1 = countTOFEntries(tocNodes.get(0), 1);
             int tofCntLv2 = countTOFEntries(tocNodes.get(0), 2);
             fmConfig.setSharedVariable(
@@ -1101,7 +1076,7 @@ public final class Transform {
                     "secondaryIndexTermLookup", secondaryIndexTermLookup);
             fmConfig.setSharedVariable(
                     "CreateLinkFromNode", createLinkFromNode);
-        } catch (TemplateModelException e) {
+        } catch (EvaluationException e) {
             throw new BugException(e);
         }
 
@@ -1111,9 +1086,9 @@ public final class Transform {
             Template template = fmConfig.getTemplate(FILE_TOC_JSON_TEMPLATE);
             try (Writer wr = FileUtil.newFileWriter(new File(destDir, FILE_TOC_JSON_OUTPUT))) {
                 try {
-                    SimpleHash dataModel = new SimpleHash(fmConfig.getObjectWrapper());
+                    Map<String,Object> dataModel = new HashMap<>();
                     dataModel.put(VAR_JSON_TOC_ROOT, tocNodes.get(0));
-                    template.process(dataModel, wr, null, NodeModel.wrap(doc));
+                    template.process(dataModel, wr, WrappedDomNode.wrapNode(doc));
                 } catch (TemplateException e) {
                     throw new BugException("Failed to generate ToC JSON "
                             + "(see cause exception).", e);
@@ -1127,9 +1102,9 @@ public final class Transform {
             Template template = fmConfig.getTemplate(FILE_SITEMAP_XML_TEMPLATE);
             try (Writer wr = FileUtil.newFileWriter(new File(destDir, FILE_SITEMAP_XML_OUTPUT))) {
                 try {
-                    SimpleHash dataModel = new SimpleHash(fmConfig.getObjectWrapper());
+                    Map<String,Object> dataModel = new HashMap<>();
                     dataModel.put(VAR_JSON_TOC_ROOT, tocNodes.get(0));
-                    template.process(dataModel, wr, null, NodeModel.wrap(doc));
+                    template.process(dataModel, wr, WrappedDomNode.wrapNode(doc));
                 } catch (TemplateException e) {
                     throw new BugException("Failed to generate Sitemap XML"
                             + "(see cause exception).", e);
@@ -1151,7 +1126,7 @@ public final class Transform {
                     } finally {
                         currentFileTOCNode = null;
                     }
-                } catch (freemarker.core.StopException e) {
+                } catch (freemarker.core.AssertionFailedException e) {
                     throw new DocgenException(e.getMessage());
                 } catch (DocgenTagException e) {
                     throw new DocgenException("Docgen tag evaluation in document text failed; see cause exception", e);
@@ -1165,7 +1140,7 @@ public final class Transform {
             try {
                 generateSearchResultsHTMLFile(doc);
                 htmlFileCounter++;
-            } catch (freemarker.core.StopException e) {
+            } catch (freemarker.core.AssertionFailedException e) {
                 throw new DocgenException(e.getMessage());
             } catch (TemplateException e) {
                 throw new BugException(e);
@@ -1204,11 +1179,11 @@ public final class Transform {
             Template template = fmConfig.getTemplate(FILE_ECLIPSE_TOC_TEMPLATE);
             try (Writer wr = FileUtil.newFileWriter(new File(destDir, FILE_ECLIPSE_TOC_OUTPUT))) {
                 try {
-                    SimpleHash dataModel = new SimpleHash(fmConfig.getObjectWrapper());
+                    Map<String,Object> dataModel = new HashMap<>();
                     if (eclipseLinkTo != null) {
                         dataModel.put(VAR_ECLIPSE_LINK_TO, eclipseLinkTo);
                     }
-                    template.process(dataModel, wr, null, NodeModel.wrap(doc));
+                    template.process(dataModel, wr, WrappedDomNode.wrapNode(doc));
                 } catch (TemplateException e) {
                     throw new BugException("Failed to generate Eclipse ToC "
                             + "(see cause exception).", e);
@@ -1278,7 +1253,7 @@ public final class Transform {
                 if (!Files.isDirectory(path)) {
                     throw new DocgenException(
                             "Insertable file with symbolic name " + StringUtil.jQuote(symbolicName)
-                            + " points to a directory that doesn't exist: " + StringUtil.jQuote(path));
+                            + " points to a directory that doesn't exist: " + StringUtil.jQuote(path.toString()));
                 }
             } else {
                 path = srcDir.toPath().resolve(unresolvedPath);
@@ -1286,12 +1261,12 @@ public final class Transform {
                     if (Files.isDirectory(path)) {
                         throw new DocgenException(
                                 "Insertable file with symbolic name " + StringUtil.jQuote(symbolicName)
-                                + " points to a directory, not a file: " + StringUtil.jQuote(path) + "."
+                                + " points to a directory, not a file: " + StringUtil.jQuote(path.toString()) + "."
                                 + " If you want to point to a directory, end the path with \"/**\".");
                     } else {
                         throw new DocgenException(
                                 "Insertable file with symbolic name " + StringUtil.jQuote(symbolicName)
-                                        + " points to a file that doesn't exist: " + StringUtil.jQuote(path));
+                                        + " points to a file that doesn't exist: " + StringUtil.jQuote(path.toString()));
                     }
                 }
             }
@@ -1443,7 +1418,7 @@ public final class Transform {
      */
     private void preprocessDOM(Document doc)
             throws SAXException, DocgenException {
-        NodeModel.simplify(doc);
+        WrappedDomNode.simplify(doc);
         preprocessDOM_applyRemoveNodesWhenOnlineSetting(doc);
         preprocessDOM_addRanks(doc);
         preprocessDOM_misc(doc);
@@ -2219,18 +2194,18 @@ public final class Transform {
                 secondaryIndexTermLookup.put(
                         primaryText, new TreeMap<>());
             }
-            Map<String, List<NodeModel>> m = secondaryIndexTermLookup.get(
+            Map<String, List<WrappedDomNode>> m = secondaryIndexTermLookup.get(
                     primaryText);
             String secondaryText = secondary.getFirstChild().getNodeValue()
                     .trim();
-            List<NodeModel> nodes = m.get(secondaryText);
+            List<WrappedDomNode> nodes = m.get(secondaryText);
             if (nodes == null) {
                 nodes = new ArrayList<>();
                 m.put(secondaryText, nodes);
             }
-            nodes.add(NodeModel.wrap(node));
+            nodes.add(WrappedDomNode.wrapNode(node));
         } else {
-            primaryIndexTermLookup.get(primaryText).add(NodeModel.wrap(node));
+            primaryIndexTermLookup.get(primaryText).add(WrappedDomNode.wrapNode(node));
         }
     }
 
@@ -2240,7 +2215,7 @@ public final class Transform {
      */
     private int generateHTMLFile()
             throws IOException, TemplateException {
-        SimpleHash dataModel = new SimpleHash(fmConfig.getObjectWrapper());
+        Map<String,Object> dataModel = new HashMap<>();
 
         TOCNode otherTOCNode;
 
@@ -2329,7 +2304,7 @@ public final class Transform {
     }
 
     private void generateSearchResultsHTMLFile(Document doc) throws TemplateException, IOException, DocgenException {
-        SimpleHash dataModel = new SimpleHash(fmConfig.getObjectWrapper());
+        Map<String,Object> dataModel = new HashMap<>();
 
         dataModel.put(VAR_PAGE_TYPE, PAGE_TYPE_SEARCH_RESULTS);
         dataModel.put(VAR_TOC_DISPLAY_DEPTH, maxMainTOFDisplayDepth);
@@ -2365,15 +2340,15 @@ public final class Transform {
         }
     }
 
-    private void generateHTMLFile_inner(SimpleHash dataModel, String fileName)
+    private void generateHTMLFile_inner(Map<String,Object> dataModel, String fileName)
             throws TemplateException, IOException {
         Template template = fmConfig.getTemplate("page.ftlh");
         File outputFile = new File(destDir, fileName);
         try (Writer writer = FileUtil.newFileWriter(outputFile)) {
             template.process(
                     dataModel,
-                    writer, null,
-                    NodeModel.wrap(currentFileTOCNode.getElement()));
+                    writer, 
+                    WrappedDomNode.wrapNode(currentFileTOCNode.getElement()));
         }
     }
 
@@ -2475,25 +2450,16 @@ public final class Transform {
         return link;
     }
 
-    private String getArgString(List<?> args, int argIdx) throws TemplateModelException {
-        Object value = args.get(argIdx);
-        if (value instanceof TemplateScalarModel) {
-            return ((TemplateScalarModel) value).getAsString();
-        }
-        if (value instanceof TemplateModel) {
-            throw new TemplateModelException("Argument #" + (argIdx + 1) + " should be a string, but it was: "
-                    + ClassUtil.getFTLTypeDescription((TemplateModel) value));
-        }
-        throw new IllegalArgumentException("\"value\" must be " + TemplateModel.class.getName());
+    private String getArgString(List<?> args, int argIdx) throws EvaluationException {
+        return args.get(argIdx).toString();
     }
 
-    private TemplateMethodModelEx createLinkFromID = new TemplateMethodModelEx() {
+    private WrappedMethod createLinkFromID = new WrappedMethod() {
 
         @Override
-        public Object exec(@SuppressWarnings("rawtypes") final List args)
-                throws TemplateModelException {
+        public Object exec(final List<Object> args) {
             if (args.size() != 1) {
-                throw new TemplateModelException(
+                throw new EvaluationException(
                         "Method CreateLinkFromID should have exactly one "
                         + "parameter.");
             }
@@ -2502,7 +2468,7 @@ public final class Transform {
             try {
                 return createLinkFromId(id);
             } catch (DocgenException e) {
-                throw new TemplateModelException("Can't resolve id " + StringUtil.jQuote(id) + " to URL", e);
+                throw new EvaluationException("Can't resolve id " + StringUtil.jQuote(id) + " to URL", e);
             }
         }
 
@@ -2521,53 +2487,47 @@ public final class Transform {
         return createElementLinkURL(elem);
     }
 
-    private TemplateMethodModelEx createLinkFromNode
-            = new TemplateMethodModelEx() {
+    private WrappedMethod createLinkFromNode = new WrappedMethod() {
 
         @Override
-        public Object exec(@SuppressWarnings("rawtypes") final List args)
-                throws TemplateModelException {
-
+        public Object exec(final List<Object> args) {
             if (args.size() != 1) {
-                throw new TemplateModelException(
+                throw new EvaluationException(
                         "Method CreateLinkFromNode should have exactly one "
                         + "parameter.");
             }
             Object arg1 = args.get(0);
-            if (!(arg1 instanceof NodeModel)) {
-                throw new TemplateModelException(
+            if (!(arg1 instanceof WrappedDomNode)) {
+                throw new EvaluationException(
                         "The first parameter to CreateLinkFromNode must be a "
                         + "node, but it wasn't. (Class: "
                         + arg1.getClass().getName() + ")");
             }
-            Node node = ((NodeModel) arg1).getNode();
+            Node node = ((WrappedDomNode) arg1).getWrappedObject();
             if (!(node instanceof Element)) {
-                throw new TemplateModelException(
+                throw new EvaluationException(
                         "The first parameter to CreateLinkFromNode must be an "
                         + "element node, but it wasn't. (Class: "
                         + arg1.getClass().getName() + ")");
             }
 
             try {
-                String url = createElementLinkURL((Element) node);
-                return url != null ? new SimpleScalar(url) : null;
+                return createElementLinkURL((Element) node);
             } catch (DocgenException e) {
-                throw new TemplateModelException(
+                throw new EvaluationException(
                         "CreateLinkFromNode falied to create link.", e);
             }
         }
 
     };
 
-    private TemplateMethodModelEx nodeFromID = new TemplateMethodModelEx() {
+    private WrappedMethod nodeFromID = new WrappedMethod() {
 
         @Override
-        public Object exec(@SuppressWarnings("rawtypes") List args)
-                throws TemplateModelException {
+        public Object exec(List<Object> args) {
             Node node = elementsById.get(getArgString(args, 0));
-            return NodeModel.wrap(node);
+            return WrappedDomNode.wrapNode(node);
         }
-
     };
 
     // -------------------------------------------------------------------------
@@ -2904,7 +2864,7 @@ public final class Transform {
                 }
                 if (result == null) {
                     throw new DocgenException(
-                            "The custom variable " + StringUtil.jQuote(varName) + " is not set (or was set to null).");
+                            "The custom variable " + StringUtil.jQuote(varName.toString()) + " is not set (or was set to null).");
                 }
                 return result;
             },
@@ -2935,5 +2895,4 @@ public final class Transform {
             return null;
         }
     }
-
 }

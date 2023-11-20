@@ -24,18 +24,16 @@ import java.io.Writer;
 import java.util.Map;
 
 import freemarker.core.Environment;
-import freemarker.template.TemplateDirectiveBody;
-import freemarker.template.TemplateDirectiveModel;
+import freemarker.core.variables.UserDirective;
+import freemarker.core.variables.UserDirectiveBody;
 import freemarker.template.TemplateException;
-import freemarker.template.TemplateModel;
 
-abstract class FilterDirective implements TemplateDirectiveModel {
+abstract class FilterDirective implements UserDirective {
     protected FilterDirective() {
     }
 
     @Override
-    public void execute(Environment env, Map params, TemplateModel[] loopVars, TemplateDirectiveBody body) throws
-            TemplateException, IOException {
+    public void execute(Environment env, Map<String,Object> params, Object[] loopVars, UserDirectiveBody body) throws IOException {
         if (!params.isEmpty()) {
             throw new TemplateException("This directive doesn't support any parameters", env);
         }

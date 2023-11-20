@@ -35,6 +35,7 @@ import java.nio.charset.UnsupportedCharsetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -57,24 +58,15 @@ import org.apache.commons.io.output.WriterOutputStream;
 import com.google.common.collect.ImmutableList;
 
 import freemarker.core.Environment;
-import freemarker.core.HTMLOutputFormat;
-import freemarker.core.NonStringException;
-import freemarker.core.TemplateHTMLOutputModel;
-import freemarker.core.TemplateValueFormatException;
-import freemarker.template.TemplateBooleanModel;
-import freemarker.template.TemplateDateModel;
-import freemarker.template.TemplateDirectiveBody;
-import freemarker.template.TemplateDirectiveModel;
+import org.freemarker.docgen.core.HTMLOutputFormat;
+import org.freemarker.docgen.core.TemplateHTMLOutputModel;
+import freemarker.core.variables.UserDirective;
+import freemarker.core.variables.UserDirectiveBody;
 import freemarker.template.TemplateException;
-import freemarker.template.TemplateHashModel;
-import freemarker.template.TemplateModel;
-import freemarker.template.TemplateNumberModel;
-import freemarker.template.TemplateScalarModel;
-import freemarker.template.utility.ClassUtil;
-import freemarker.template.utility.NullWriter;
-import freemarker.template.utility.StringUtil;
+import static freemarker.core.variables.Wrap.isDate;
+import static freemarker.core.variables.Wrap.asDate;
 
-public class PrintTextWithDocgenSubstitutionsDirective implements TemplateDirectiveModel {
+public class PrintTextWithDocgenSubstitutionsDirective implements UserDirective {
 
     private static final String PARAM_TEXT = "text";
     private static final String DOCGEN_TAG_START = "[docgen";
@@ -100,18 +92,18 @@ public class PrintTextWithDocgenSubstitutionsDirective implements TemplateDirect
     }
 
     @Override
-    public void execute(Environment env, Map params, TemplateModel[] loopVars, TemplateDirectiveBody body)
+    public void execute(Environment env, Map params, Object[] loopVars, UserDirectiveBody body)
             throws TemplateException, IOException {
         String text = null;
-        for (Map.Entry<String, TemplateModel> entry : ((Map<String, TemplateModel>) params).entrySet()) {
+        for (Map.Entry<String, Object> entry : ((Map<String, Object>) params).entrySet()) {
             String paramName = entry.getKey();
-            TemplateModel paramValue = entry.getValue();
+            Object paramValue = entry.getValue();
             if (paramValue != null) {
                 if (PARAM_TEXT.equals(paramName)) {
-                    if (!(paramValue instanceof TemplateScalarModel)) {
-                        throw new NonStringException("The \"" + PARAM_TEXT + "\" argument must be a string!", env);
+                    if (!(paramValue instanceof String)) {
+                        throw new TemplateException("The \"" + PARAM_TEXT + "\" argument must be a string!", env);
                     }
-                    text = ((TemplateScalarModel) paramValue).getAsString();
+                    text = paramValue.toString();
                 } else {
                     throw new TemplateException("Unsupported parameter: " + StringUtil.jQuote(paramName), env);
                 }
@@ -199,10 +191,8 @@ public class PrintTextWithDocgenSubstitutionsDirective implements TemplateDirect
         }
 
         private void insertCustomVariable(String customVarName) throws TemplateException, IOException {
-            TemplateHashModel customVariables =
-                    Objects.requireNonNull(
-                            (TemplateHashModel) env.getVariable(Transform.VAR_CUSTOM_VARIABLES));
-            TemplateModel customVarValue = customVariables.get(customVarName);
+            Map customVariables = Objects.requireNonNull((Map) env.getVariable(Transform.VAR_CUSTOM_VARIABLES));
+            Object customVarValue = customVariables.get(customVarName);
             if (customVarValue == null) {
                 throw newErrorInDocgenTag(
                         "Docgen custom variable " + StringUtil.jQuote(customVarName)
@@ -213,34 +203,30 @@ public class PrintTextWithDocgenSubstitutionsDirective implements TemplateDirect
         }
 
         /** Horrible hack to mimic ${var}; the public FreeMarker API should have something like this! */
-        private void printValue(String varName, TemplateModel varValue) throws TemplateException,
-                IOException {
+        private void printValue(String varName, Object varValue) throws IOException {
             Object formattedValue;
-            if (varValue instanceof TemplateNumberModel) {
-                try {
-                    formattedValue = env.getTemplateNumberFormat().format((TemplateNumberModel) varValue);
+            if (varValue instanceof Number) {
+                //formattedValue = env.getTemplateNumberFormat().format((Number) varValue);
+                formattedValue = varValue.toString();//FIXME
+            } else if (isDate(varValue)) {
+                Date tdm = asDate(varValue);
+                formattedValue = tdm.toString(); //FIXME
+                /*try {
+                    formattedValue = env.getTemplateDateFormat(tdm.getDateType(), tdm.getAsDate().getClass()).format(tdm);
                 } catch (TemplateValueFormatException e) {
                     throw newFormattingFailedException(varName, e);
-                }
-            } else if (varValue instanceof TemplateDateModel) {
-                TemplateDateModel tdm = (TemplateDateModel) varValue;
-                try {
-                    formattedValue = env.getTemplateDateFormat(tdm.getDateType(), tdm.getAsDate().getClass())
-                            .format(tdm);
-                } catch (TemplateValueFormatException e) {
-                    throw newFormattingFailedException(varName, e);
-                }
-            } else if (varValue instanceof TemplateScalarModel) {
-                formattedValue = ((TemplateScalarModel) varValue).getAsString();
-            } else if (varValue instanceof TemplateBooleanModel) {
+                }*/
+            } else if (varValue instanceof String) {
+                formattedValue = (String) varValue;
+            } else if (varValue instanceof Boolean) {
                 String[] booleanStrValues = env.getBooleanFormat().split(",");
-                formattedValue = ((TemplateBooleanModel) varValue).getAsBoolean()
-                        ? booleanStrValues[0] : booleanStrValues[1];
+                formattedValue = ((Boolean) varValue) ? booleanStrValues[0] : booleanStrValues[1];
             } else {
                 throw new TemplateException(
                         "Docgen custom variable " + StringUtil.jQuote(varName)
                                 + " has an unsupported type: "
-                                + ClassUtil.getFTLTypeDescription(varValue),
+                                //+ ClassUtil.getFTLTypeDescription(varValue),
+                                + varValue.getClass().getName(),
                         env);
             }
             if (formattedValue instanceof String) {
@@ -336,7 +322,7 @@ public class PrintTextWithDocgenSubstitutionsDirective implements TemplateDirect
             InputStream prevIn = System.in;
             Map<String, String> prevSystemProperties = new HashMap<>();
             try {
-                outCapturer = insertDirectiveType != CHECK_COMMAND ? new StringWriter() : NullWriter.INSTANCE;
+                outCapturer = insertDirectiveType != CHECK_COMMAND ? new StringWriter() : NULL_WRITER;
                 PrintStream outCapturerPrintStream = new PrintStream(
                         new WriterOutputStream(outCapturer, Charset.defaultCharset()));
                 System.setOut(outCapturerPrintStream);
@@ -437,7 +423,7 @@ public class PrintTextWithDocgenSubstitutionsDirective implements TemplateDirect
         private TemplateException newErrorInInsertOutputCommandException(
                 String specificMessage,
                 Transform.InsertableOutputCommandProperties cmdProps, List<String> cmdArgs,
-                Throwable e) {
+                Exception e) {
             String outputFileName = transform.getCurrentFileTOCNode().getOutputFileName();
             return newErrorInDocgenTag(
                     specificMessage
@@ -752,18 +738,12 @@ public class PrintTextWithDocgenSubstitutionsDirective implements TemplateDirect
             return newErrorInDocgenTag(errorDetail, null);
         }
 
-        private TemplateException newErrorInDocgenTag(String errorDetail, Throwable cause) {
+        private TemplateException newErrorInDocgenTag(String errorDetail, Exception cause) {
             return new DocgenTagException(
                     "\nError in docgen tag: " + text.substring(lastDocgenTagStart, cursor) + "\n" + errorDetail
                             + (cause != null ? "\nSee cause exception for more!" : ""),
                     cause,
                     env);
-        }
-
-        private TemplateException newFormattingFailedException(String customVarName, TemplateValueFormatException e) {
-            return new TemplateException(
-                    "Formatting failed for Docgen custom variable " + StringUtil.jQuote(customVarName),
-                    e, env);
         }
 
         private InsertDirectiveArgs fetchInsertDirectiveArgs(
@@ -920,5 +900,13 @@ public class PrintTextWithDocgenSubstitutionsDirective implements TemplateDirect
         private int indexAfterDirective;
         private boolean printCommand;
     }
+
+    static public final Writer NULL_WRITER = new Writer() {
+        public void write(char cbuf[], int off, int len) {}
+        
+        public void flush() {}
+
+        public void close() {}
+    };
 
 }

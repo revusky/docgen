@@ -19,19 +19,20 @@
 
 package org.freemarker.docgen.core;
 
-import freemarker.core.Environment;
-import freemarker.template.TemplateException;
+/** @since 2.3.21 */
+public class CollectionUtils {
+    
+    private CollectionUtils() { }
 
-/**
- * Exception thrown by docgen tag-s that are inside the XML text. As such, it's treated as the mistake of the document
- * author (as opposed to an internal error).
- */
-public class DocgenTagException extends TemplateException {
-    public DocgenTagException(String description, Environment env) {
-        super(description, env);
-    }
+    public static final Object[] EMPTY_OBJECT_ARRAY = new Object[] { };
 
-    public DocgenTagException(String description, Exception cause, Environment env) {
-        super(description, cause, env);
-    }
+    public static final String[] EMPTY_STRING_ARRAY = new String[] { };
+
+    public static final Class[] EMPTY_CLASS_ARRAY = new Class[] { };
+
+    /**
+     * @since 2.3.22
+     */
+    public static final char[] EMPTY_CHAR_ARRAY = new char[] { };
+    
 }
